@@ -12,4 +12,4 @@ if __name__=='__main__':
     GrMe.set_gr_a(Gr_a_revPBE)
 
     GrMe.set_me("Co", "hcp0001", Co_a_revPBE)
-    cells = GrMe.search_supercell(10, 6, id=0, beta_fix=False, beta_min=0., eq_abs=False, eq_eps=4, csv=True, textmode=True)
+    cells = GrMe.search_supercell(radius=10, eps_max=6, id=0, beta_fix=False, beta_min=0., eq_abs=False, eq_eps=4, csv=True, textmode=True)

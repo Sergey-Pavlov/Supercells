@@ -115,8 +115,7 @@ def eq(a, b, eps):
     return abs(a - b) <= eps
 
 
-def divite(x, y):
-    """ остаток от деления максимального числа на минимальное """
+def divide(x, y):
     if x > y:
         max = x
         min = y
@@ -326,10 +325,10 @@ class Supercell:
         return False
 
     def proportional(self, cell1, cell2):
-        divite1 = divite(cell1["me"]["V1_abs"], cell2["me"]["V1_abs"])
-        divite2 = divite(cell1["me"]["V2_abs"], cell2["me"]["V2_abs"])
-        divite3 = divite(cell1["me"]["V1_abs"], cell2["me"]["V2_abs"])
-        divite4 = divite(cell1["me"]["V2_abs"], cell2["me"]["V1_abs"])
+        divite1 = divide(cell1["me"]["V1_abs"], cell2["me"]["V1_abs"])
+        divite2 = divide(cell1["me"]["V2_abs"], cell2["me"]["V2_abs"])
+        divite3 = divide(cell1["me"]["V1_abs"], cell2["me"]["V2_abs"])
+        divite4 = divide(cell1["me"]["V2_abs"], cell2["me"]["V1_abs"])
 
         return (divite1 <= 1.e-5 and divite2 <= 1.e-5) or (divite3 <= 1.e-5 and divite4 <= 1.e-5)
 
@@ -635,7 +634,6 @@ class Supercell:
         return cells
 
     def func_opt_eps(self, eps1, eps2):
-        """чем меньше, тем лучше"""
         return min([abs(eps1), abs(eps2)]) * abs(eps1 - eps2)
 
     def search_supercell(self, radius: float = 20, eps_max: float = 2.5, eps_min: float = 0., id: int = 0,
@@ -1060,8 +1058,6 @@ class Supercell:
                 file.write(f'eps1 = {eps1 * 100:.3f}, eps2 = {eps2 * 100:.3f} \n \n')
                 file.write(f'Number of atoms: {len(supercell)}' + '\n' + '\n')
                 file.write(f'{code_str}' + '\n')
-
-        # return supercell
 
     def build_supercells_from_csv(self, filepath, directory_res=Path('./'), n_me_layers=3, id_start: int = 0,
                                   textmode=False,
