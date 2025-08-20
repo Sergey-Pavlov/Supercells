@@ -1,16 +1,15 @@
-# This is a sample Python script.
+from pathlib import Path
+from supercells import Supercell
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+if __name__=='__main__':
+    Gr_a_revPBE = 2.472387181
+    distance = 3.35
+    Co_a_revPBE = 2.428759230
+    Co_c_revPBE = 3.920363262
 
+    GrMe = Supercell()
+    GrMe.distance = distance
+    GrMe.set_gr_a(Gr_a_revPBE)
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
-
-
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+    GrMe.set_me("Co", "hcp0001", Co_a_revPBE)
+    cells = GrMe.search_supercell(10, 6, id=0, beta_fix=False, beta_min=0., eq_abs=False, eq_eps=4, csv=True, textmode=True)
