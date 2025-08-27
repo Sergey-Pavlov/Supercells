@@ -16,33 +16,43 @@ from ase.build import diamond100
 from ase.build import diamond111
 
 
-def group_el(array, elements_eq):
-    """ elements_eq - func: f(el_1, el_2) -> bool  """
+def group_el(array:list, elements_eq) -> list:
+    """
+    Groups equivalent elements of a list according to an equivalence function.
+    Args:
+        array (list): list to be grouped;
+        elements_eq: equivalence function f(el_1, el_2) that takes 2 elements and returns
+        'True' if the elements are equivalent.
+    Returns:
+        list: list containing sublists of equivalent elements.
+    """
     ar_group = []
     used_indices = set()
-
     for i in range(len(array)):
         if i in used_indices:
             continue
-
         group = [array[i]]
         used_indices.add(i)
         for j in range(i + 1, len(array)):
             if j in used_indices:
                 continue
-
             if elements_eq(array[i], array[j]):
                 group.append(array[j])
                 used_indices.add(j)
         ar_group.append(group)
-
     return ar_group
 
-
-def format_write(numbers):
-    str = ""
-    Num = len(numbers)
-    for i in range(Num):
+def format_write(numbers:list) -> str:
+    """
+    Creates a string of numbers spaced with equal intervals.
+    Args:
+        numbers: list of numbers.
+    Returns:
+        str: string of numbers.
+    """
+    string = ""
+    num = len(numbers)
+    for i in range(num):
         if isinstance(numbers[i], int):
             formatted_num = f"{numbers[i]}"
             N = 4
@@ -55,16 +65,20 @@ def format_write(numbers):
 
         num_length = len(formatted_num)
         num_spaces = max(0, N - num_length)
-        if i == Num - 1:
-            str += formatted_num
+        if i == num - 1:
+            string += formatted_num
         else:
-            str += formatted_num + "," + " " * num_spaces
+            string += formatted_num + "," + " " * num_spaces
 
-    return str
+    return string
 
-
-def angle_v(v1, v2):
-    """ Return angle between vectors in degree """
+def angle_v(v1, v2) -> float:
+    """
+    Calculates the angle between vectors in degrees.
+    Args:
+        v1 (np.ndarray: first vector;
+        v2 (np.ndarray): second vector.
+    """
     angle = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
     if angle >= 1:
         return 0
@@ -73,19 +87,26 @@ def angle_v(v1, v2):
     else:
         return np.degrees(np.arccos(angle))
 
-
-def acute_angle_v(v1, v2):
-    """ Return acute angle between vectors in degree """
+def acute_angle_v(v1, v2) -> float:
+    """
+    Calculates the acute angle between vectors in degrees.
+    Args:
+        v1 (np.ndarray): first vector;
+        v2 (np.ndarray): second vector.
+    """
     angle = angle_v(v1, v2)
     if angle > 90:
         angle = 180 - angle
     return angle
 
-
-def single_angle_v(v1, v2):
+def single_angle_v(v1, v2) -> int:
     """
-        if return +1 - First vector need rotate counterclockwise
-        if return -1 - First vector need rotate clockwise
+    Determines whether vectors v1, v2 and a vector perpendicular to them form a right or left triple.
+    Args:
+        v1 (np.ndarray): first vector;
+        v2 (np.ndarray): second vector.
+    Returns:
+        int: if '+1' - right triple, if '-1' - left triple.
     """
     v11 = [v1[0], v1[1], 0]
     v12 = [v2[0], v2[1], 0]
@@ -95,244 +116,342 @@ def single_angle_v(v1, v2):
     else:
         return -1
 
-
-def rotate_matrix(angle):
+def rotate_matrix(angle:float) -> np.ndarray:
+    """
+    Creates a rotation matrix.
+    Args:
+        angle: rotation angle
+    """
     cos = np.cos(np.radians(angle))
     sin = np.sin(np.radians(angle))
     return np.array([[cos, -sin], [sin, cos]])
 
-
-def linear_map(system, M):
+def linear_map(system: list, map_matrix) -> list:
+    """
+    Performs a two-dimensional linear transformation on a system of atoms.
+    Args:
+        system (list): list of atoms, where an atom is a list of coordinates [x, y];
+        map_matrix (np.ndarray): linear transformation matrix.
+    """
     for atom in system:
         vector = np.array([atom[0], atom[1]])
-        vector = np.dot(M, vector)
+        vector = np.dot(map_matrix, vector)
         atom[0] = vector[0]
         atom[1] = vector[1]
     return system
 
-
-def eq(a, b, eps):
+def eq(a:float, b:float, eps:float) -> bool:
+    """
+    Checks equality of numbers with a given tolerance.
+    Args:
+        a: first number;
+        b: second number;
+        eps: required equality tolerance.
+    """
     return abs(a - b) <= eps
 
-
-def divide(x, y):
+def divide(x: float, y:float) -> float:
+    """
+    Calculates the remainder of dividing a larger number by a smaller one.
+    Args:
+        x: first number;
+        y: second number.
+    """
     if x > y:
-        max = x
-        min = y
+        maximum = x
+        minimum = y
     else:
-        max = y
-        min = x
-    return abs((max / min) % 1)
+        maximum = y
+        minimum = x
+    return abs((maximum / minimum) % 1)
 
 
 class Supercell:
-    def __init__(self, title_me: str = "", lat_me: str = "", z_dist: float = 25., distance: float = 3):
+    """
+    Class for finding and building supercells.
 
+    Attributes:
+        mg_supercells: list of supercells of type dict, where:
+            'eps1' (float): mismatch parameter (in %) for the first supercell vector;
+            'eps2' (float): mismatch parameter (in %) for the second supercell vector;
+            'alpha' (float): rotation angle (in degrees) of the graphene lattice relative to the substrate lattice;
+            'S' (float): supercell area (in angstroms);
+            'me', 'gr' (dict): substrate and graphene cells, where:
+                'V1', 'V2' (np.ndarray): first and second cell vectors;
+                'V1_abs', 'V2_abs' (float): lengths of the first and second cell vectors;
+                'n11', 'n12': coordinates of the first cell vector in the lattice basis;
+                'n21', 'n22': coordinates of the second cell vector in the lattice basis;
+                'beta': angle between cell vectors
+        other attributes see in __init__()
+    """
+
+    def __init__(self, title_me: str = "", lat_me: str = "", z_dist: float = 25., distance: float = 3):
+        """
+        Args:
+            title_me (str): substrate name;
+            lat_me (str): substrate surface name, implemented:
+                * fcc111
+                * fcc110
+                * fcc100
+                * bcc111
+                * bcc110
+                * bcc100
+                * hcp0001
+                * diamond100
+                * diamond111
+            z_dist (float): size of the generated cell along the Z axis in angstroms;
+            distance (float): distance between the graphene plane and the substrate in angstroms.
+        """
         self.z_dist = z_dist
         self.distance = distance
-
-        self.gr_a_exp = 2.4595
-
+        self.gr_a_exp = 2.4612
         self.gr_a = self.gr_a_exp
         self.compute_gr_a()
-
         self.me_a_3d_exp = 1.0
         self.me_c_exp = 1.0
         if title_me != "":
             self.title_me = title_me
-            match title_me:
-                case "Ag":
-                    self.me_a_3d_exp = 4.0860
-                case "Au":
-                    self.me_a_3d_exp = 4.0786
-                case 'Pt':
-                    self.me_a_3d_exp = 3.9236
-                case 'Al':
-                    self.me_a_3d_exp = 4.0493
-                case 'Ni':
-                    self.me_a_3d_exp = 3.5241
-                case 'Ag':
-                    self.me_a_3d_exp = 4.086
-                case 'Cu':
-                    self.me_a_3d_exp = 3.615
-                case 'Ir':
-                    self.me_a_3d_exp = 3.890
-                case 'Pd':
-                    self.me_a_3d_exp = 3.840
-                case 'Fe':
-                    self.me_a_3d_exp = 2.866
-                case 'Co':
-                    self.me_a_3d_exp = 2.505
-                    self.me_c_exp = 4.089
-
+            self.set_sub_a_3d_exp()
         self.me_a_3d = self.me_a_3d_exp
         self.me_c = self.me_c_exp
         self.lat_me = lat_me
         self.compute_me_a()
-
         self.mg_supercells = []
 
+    def set_sub_a_3d_exp(self):
+        match self.title_me:
+            case "Ag":
+                self.me_a_3d_exp = 4.086
+            case "Au":
+                self.me_a_3d_exp = 4.0782
+            case 'Pt':
+                self.me_a_3d_exp = 3.9236
+            case 'Al':
+                self.me_a_3d_exp = 4.0496
+            case 'Ni':
+                self.me_a_3d_exp = 3.524
+            case 'Cu':
+                self.me_a_3d_exp = 3.6146
+            case 'Ir':
+                self.me_a_3d_exp = 3.8392
+            case 'Pd':
+                self.me_a_3d_exp = 3.8903
+            case 'Fe':
+                self.me_a_3d_exp = 2.8665
+            case 'Co':
+                self.me_a_3d_exp = 2.5071
+                self.me_c_exp = 4.0686
+
     def compute_me_a(self):
+        """
+        Calculates substrate lattice vectors and their lengths depending on the set surface type
+        and lattice parameter.
+        """
         if self.lat_me == "":
             self.me_a1 = 1.0
             self.me_a2 = self.me_a1
             self.m1 = np.array([self.me_a1, 0.0])
             self.m2 = np.array([0.0, self.me_a2])
-
         if self.lat_me == "fcc100":
             self.me_a1 = self.me_a_3d * 2 ** 0.5 / 2
             self.me_a2 = self.me_a1
             self.m1 = np.array([self.me_a1, 0.0])
             self.m2 = np.array([0.0, self.me_a2])
-
         if self.lat_me == "fcc110":
             self.me_a1 = self.me_a_3d
             self.me_a2 = self.me_a_3d * 2 ** 0.5 / 2
             self.m1 = np.array([self.me_a1, 0.0])
             self.m2 = np.array([0.0, self.me_a2])
-
         if self.lat_me == "fcc111":
             self.me_a1 = self.me_a_3d * 2 ** 0.5 / 2
             self.me_a2 = self.me_a1
             self.m1 = np.array([self.me_a1, 0.0])
             self.m2 = np.array([self.me_a2 * np.cos(np.radians(60.0)), self.me_a2 * np.sin(np.radians(60.0))])
-
         if self.lat_me == "bcc100":
             self.me_a1 = self.me_a_3d
             self.me_a2 = self.me_a1
             self.m1 = np.array([self.me_a1, 0.0])
             self.m2 = np.array([0.0, self.me_a2])
-
         if self.lat_me == "bcc110":
             angle_tmp = np.arccos(1 / 3 ** 0.5)
             self.me_a1 = self.me_a_3d
             self.me_a2 = self.me_a_3d * 3 ** 0.5 / 2
             self.m1 = np.array([self.me_a1, 0.0])
             self.m2 = np.array([self.me_a2 * np.cos(angle_tmp), self.me_a2 * np.sin(angle_tmp)])
-
         if self.lat_me == "bcc111":
             self.me_a1 = self.me_a_3d * 2 ** 0.5
             self.me_a2 = self.me_a1
             self.m1 = np.array([self.me_a1, 0.0])
             self.m2 = np.array([self.me_a2 * np.cos(np.radians(60.0)), self.me_a2 * np.sin(np.radians(60.0))])
-
         if self.lat_me == "hcp0001":
             self.me_a1 = self.me_a_3d
             self.me_a2 = self.me_a1
             self.m1 = np.array([self.me_a1, 0.0])
             self.m2 = np.array([self.me_a2 * np.cos(np.radians(60.0)), self.me_a2 * np.sin(np.radians(60.0))])
-
         if self.lat_me == "diamond100":
             self.me_a1 = self.me_a_3d * 2 ** 0.5 / 2
             self.me_a2 = self.me_a1
             self.m1 = np.array([self.me_a1, 0.0])
             self.m2 = np.array([0.0, self.me_a2])
-
         if self.lat_me == "diamond111":
             self.me_a1 = self.me_a_3d * 2 ** 0.5 / 2
             self.me_a2 = self.me_a1
             self.m1 = np.array([self.me_a1, 0.0])
             self.m2 = np.array([self.me_a2 * np.cos(np.radians(60.0)), self.me_a2 * np.sin(np.radians(60.0))])
 
-    def compute_m_max(self, radius):
+    def compute_m_max(self, radius: float) -> int:
+        """
+        Calculates the maximum coordinate value in the substrate lattice basis for searching within a given radius.
+        Args:
+            radius (float): required radius.
+        """
         if self.lat_me == "fcc100":
             return int(m.ceil(radius / self.me_a1))
-
         if self.lat_me == "fcc110":
             return int(m.ceil(radius / self.me_a2))
-
         if self.lat_me == "fcc111":
             return int(m.ceil(radius / self.me_a1 / np.sin(np.radians(60.0))))
-
         if self.lat_me == "bcc100":
             return int(m.ceil(radius / self.me_a1))
-
         if self.lat_me == "bcc110":
             return int(m.ceil(radius / self.me_a2 / np.sin(np.arccos(1 / 3 ** 0.5))))
-
         if self.lat_me == "bcc111":
             return int(m.ceil(radius / self.me_a1 / np.sin(np.radians(60.0))))
-
         if self.lat_me == "hcp0001":
             return int(m.ceil(radius / self.me_a1 / np.sin(np.radians(60.0))))
-
         if self.lat_me == "diamond100":
             return int(m.ceil(radius / self.me_a1))
-
         if self.lat_me == "diamond111":
             return int(m.ceil(radius / self.me_a1 / np.sin(np.radians(60.0))))
 
     def compute_gr_a(self):
+        """
+        Calculates graphene lattice vectors and their lengths depending on the graphene lattice parameter,
+        also calculates the C-C bond length.
+        """
         self.g1 = np.array([self.gr_a, 0.0])
         self.g2 = np.array([self.gr_a * np.cos(np.radians(60.0)), self.gr_a * np.sin(np.radians(60.0))])
         self.cc = np.linalg.norm(np.array([self.gr_a / 2, self.gr_a * 3 ** 0.5 / 6]))
 
-    def set_gr_a(self, a):
-        """  """
+    def set_distance(self, distance: float):
+        """
+        Sets the required distance between the graphene plane and the substrate.
+        Args:
+            distance (float): required distance.
+        """
+        self.distance = distance
+
+    def set_gr(self, a: float):
+        """
+        Sets the graphene lattice for a given lattice parameter.
+        Args:
+            a (float): required lattice parameter.
+        """
         self.gr_a = a
         self.compute_gr_a()
 
     def set_me(self, title_me: str = "", lat_me: str = "", a: float = -1.0, c: float = -1.0):
+        """
+        Sets the substrate lattice with the required surface type and lattice parameter.
+        Args:
+            title_me (str): substrate name;
+            lat_me (str): surface type, implemented types are listed in __init__() of this class;
+            a (float): required lattice parameter 'a' (volumetric);
+            c (float): required lattice parameter 'c' (volumetric) (if necessary).
+        """
         if title_me != "":
             self.title_me = title_me
+            self.set_sub_a_3d_exp()
+            self.me_a_3d = self.me_a_3d_exp
+            self.me_c = self.me_c_exp
         if lat_me != "":
             self.lat_me = lat_me
         if not a < 0:
             self.me_a_3d = a
         if not c < 0:
             self.me_c = c
-
         self.compute_me_a()
 
-    def build_me(self, size1, size2, n_me_layers):
+    def build_me(self, size1: int, size2: int, n_me_layers: int) -> np.ndarray:
+        """
+        Builds a substrate of a given size.
+        Args:
+            size1: substrate size along the first axis;
+            size2: substrate size along the second axis;
+            n_me_layers: number of substrate layers;
+        Returns:
+            np.ndarray: list of substrate atom coordinates.
+        """
         if self.lat_me == "fcc100":
-            Me = fcc100(self.title_me, size=(size1, size2, n_me_layers), a=self.me_a_3d, vacuum=0.0)
+            substrate = fcc100(self.title_me, size=(size1, size2, n_me_layers), a=self.me_a_3d, vacuum=0.0)
         if self.lat_me == "fcc110":
-            Me = fcc110(self.title_me, size=(size1, size2, n_me_layers), a=self.me_a_3d, vacuum=0.0)
+            substrate = fcc110(self.title_me, size=(size1, size2, n_me_layers), a=self.me_a_3d, vacuum=0.0)
         if self.lat_me == "fcc111":
-            Me = fcc111(self.title_me, size=(size1, size2, n_me_layers), a=self.me_a_3d, vacuum=0.0)
-
+            substrate = fcc111(self.title_me, size=(size1, size2, n_me_layers), a=self.me_a_3d, vacuum=0.0)
         if self.lat_me == "bcc100":
-            Me = bcc100(self.title_me, size=(size1, size2, n_me_layers), a=self.me_a_3d, vacuum=0.0)
+            substrate = bcc100(self.title_me, size=(size1, size2, n_me_layers), a=self.me_a_3d, vacuum=0.0)
         if self.lat_me == "bcc110":
-            Me = bcc110(self.title_me, size=(size1, size2, n_me_layers), a=self.me_a_3d, vacuum=0.0)
+            substrate = bcc110(self.title_me, size=(size1, size2, n_me_layers), a=self.me_a_3d, vacuum=0.0)
         if self.lat_me == "bcc111":
-            Me = bcc111(self.title_me, size=(size1, size2, n_me_layers), a=self.me_a_3d, vacuum=0.0)
-
+            substrate = bcc111(self.title_me, size=(size1, size2, n_me_layers), a=self.me_a_3d, vacuum=0.0)
         if self.lat_me == "hcp0001":
-            Me = hcp0001(self.title_me, size=(size1, size2, n_me_layers), a=self.me_a_3d, c=self.me_c, vacuum=0.0)
+            substrate = hcp0001(self.title_me, size=(size1, size2, n_me_layers), a=self.me_a_3d, c=self.me_c, vacuum=0.0)
         if self.lat_me == "diamond100":
-            Me = diamond100(self.title_me, size=(size1, size2, n_me_layers), a=self.me_a_3d, vacuum=0.0)
+            substrate = diamond100(self.title_me, size=(size1, size2, n_me_layers), a=self.me_a_3d, vacuum=0.0)
         if self.lat_me == "diamond111":
-            Me = diamond111(self.title_me, size=(size1, size2, n_me_layers), a=self.me_a_3d, vacuum=0.0)
+            substrate = diamond111(self.title_me, size=(size1, size2, n_me_layers), a=self.me_a_3d, vacuum=0.0)
 
-        return np.array(Me.get_positions())
+        return np.array(substrate.get_positions())
 
-    def eq_alpha(self, cell1, cell2):
-        if eq(cell1["alpha"], cell2["alpha"], 1.e-5):
+    def eq_alpha(self, scell1: dict, scell2: dict) -> bool:
+        """
+        Determines the equivalence of the rotation angle of the graphene lattice relative to the substrate lattice of two supercells.
+        Args:
+            scell1 (dict): first supercell;
+            scell2 (dict): second supercell.
+        """
+        if eq(scell1["alpha"], scell2["alpha"], 1.e-5):
             return True
-        if round(abs(cell1["alpha"] - cell2["alpha"]), 5) % 60 <= 1.e-5:
+        if round(abs(scell1["alpha"] - scell2["alpha"]), 5) % 60 <= 1.e-5:
             return True
-        if round(abs(cell1["alpha"] + cell2["alpha"]), 5) % 60 <= 1.e-5:
+        if round(abs(scell1["alpha"] + scell2["alpha"]), 5) % 60 <= 1.e-5:
             return True
         return False
 
-    def eq_eps(self, cell1, cell2):
-        if eq(cell1["eps1"], cell2["eps1"], 1.e-5) and eq(cell1["eps2"], cell2["eps2"], 1.e-5):
+    def eq_eps(self, scell1: dict, scell2: dict) -> bool:
+        """
+        Determines the equivalence of mismatches of two supercells.
+        Args:
+            scell1 (dict): first supercell;
+            scell2 (dict): second supercell.
+        """
+        if eq(scell1["eps1"], scell2["eps1"], 1.e-5) and eq(scell1["eps2"], scell2["eps2"], 1.e-5):
             return True
-        if eq(cell1["eps1"], cell2["eps2"], 1.e-5) and eq(cell1["eps2"], cell2["eps1"], 1.e-5):
+        if eq(scell1["eps1"], scell2["eps2"], 1.e-5) and eq(scell1["eps2"], scell2["eps1"], 1.e-5):
             return True
         return False
 
-    def proportional(self, cell1, cell2):
-        divite1 = divide(cell1["me"]["V1_abs"], cell2["me"]["V1_abs"])
-        divite2 = divide(cell1["me"]["V2_abs"], cell2["me"]["V2_abs"])
-        divite3 = divide(cell1["me"]["V1_abs"], cell2["me"]["V2_abs"])
-        divite4 = divide(cell1["me"]["V2_abs"], cell2["me"]["V1_abs"])
+    def proportional(self, scell1: dict, scell2: dict) -> bool:
+        """
+        Determines the proportionality of two supercells.
+        Args:
+            scell1 (dict): first supercell;
+            scell2 (dict): second supercell.
+        """
+        divide1 = divide(scell1["me"]["V1_abs"], scell2["me"]["V1_abs"])
+        divide2 = divide(scell1["me"]["V2_abs"], scell2["me"]["V2_abs"])
+        divide3 = divide(scell1["me"]["V1_abs"], scell2["me"]["V2_abs"])
+        divide4 = divide(scell1["me"]["V2_abs"], scell2["me"]["V1_abs"])
+        return (divide1 <= 1.e-5 and divide2 <= 1.e-5) or (divide3 <= 1.e-5 and divide4 <= 1.e-5)
 
-        return (divite1 <= 1.e-5 and divite2 <= 1.e-5) or (divite3 <= 1.e-5 and divite4 <= 1.e-5)
-
-    def on_bounary(self, atom, L1, L2):
+    def on_bounary(self, atom, L1, L2) -> bool:
+        """
+        Determines if an atom is on the boundary of the supercell.
+        Args:
+            atom (np.ndarray): atom coordinates;
+            L1 (np.ndarray): first supercell vector;
+            L2 (np.ndarray): second supercell vector.
+        """
         tmp_v = atom - L2
         if abs(acute_angle_v(tmp_v, L1)) < 1.e-5:
             return True
@@ -340,9 +459,16 @@ class Supercell:
         if abs(acute_angle_v(tmp_v, L2)) < 1.e-5:
             return True
 
-    def atom_not_inside(self, atom, l1, l2):
+    def atom_not_inside(self, atom, L1, L2)-> bool:
+        """
+        Determines if an atom is outside the supercell;
+        Args:
+            atom (np.ndarray): atom coordinates;
+            L1 (np.ndarray): first supercell vector;
+            L2 (np.ndarray): second supercell vector.
+        """
         eps = 1.e-5
-        matrix = np.array([l1, l2]).T
+        matrix = np.array([L1, L2]).T
         try:
             uv = np.linalg.solve(matrix, atom)
             u, v = uv
@@ -353,12 +479,22 @@ class Supercell:
         else:
             return True
 
-    def good_cell(self, abs1, abs2, beta, beta_fix, eq_abs, beta_min, beta_max):
-
+    def good_cell(self, abs1: float, abs2: float, beta: float, beta_fix, eq_abs: bool,
+                  beta_min: float, beta_max: float):
+        """
+        Checks if a cell meets the search conditions.
+        Args:
+            abs1 (float): length of the first cell vector;
+            abs2 (float): length of the second cell vector;
+            beta (float): angle between cell vectors;
+            beta_fix: search parameter for fixing beta, see more in method search_supercell()
+            eq_abs (bool): search parameter for cell rhombicity, see more in method search_supercell()
+            beta_min (float): minimum value of beta;
+            beta_max (float): maximum value of beta;
+        """
         if eq_abs:
             if not eq(abs1, abs2, 1.e-5):
                 return False
-
         if type(beta_fix) is bool:
             if beta < beta_min or beta > beta_max:
                 return False
@@ -371,8 +507,14 @@ class Supercell:
                 return False
         return True
 
-    def eq_cell(self, cell1, cell2):
-
+    def eq_cell(self, cell1: dict, cell2: dict) -> bool:
+        """
+        Determines the equivalence of two cells. Cells are equivalent if the lengths of the cell vectors
+        and the angle between the vectors (beta) are equal.
+        Args:
+             cell1 (dict): first cell;
+             cell2 (dict): second cell.
+        """
         if eq(cell1["beta"], cell2["beta"], 1.e-10):
             if eq(cell1["V1_abs"], cell2["V1_abs"], 1.e-10) and eq(cell1["V2_abs"], cell2["V2_abs"], 1.e-10):
                 return True
@@ -380,19 +522,33 @@ class Supercell:
                 return True
         return False
 
-    def eq_mg_supercell(self, cell1, cell2):
-        if not eq(cell1["me"]["beta"], cell2["me"]["beta"], 1.e-5):
+    def eq_mg_supercell(self, scell1: dict, scell2: dict):
+        """
+        Determines the equivalence of two supercells. Supercells are equivalent if the beta angles,
+        alpha angles, mismatch parameters are equivalent, and if the cells are proportional or geometrically equal.
+        Args:
+            scell1 (dict): first supercell;
+            scell2 (dict): second supercell;
+        """
+        if not eq(scell1["me"]["beta"], scell2["me"]["beta"], 1.e-5):
             return False
-        if not self.eq_alpha(cell1, cell2):
+        if not self.eq_alpha(scell1, scell2):
             return False
-        if not self.eq_eps(cell1, cell2):
+        if not self.eq_eps(scell1, scell2):
             return False
-        if not self.proportional(cell1, cell2):
+        if not self.proportional(scell1, scell2):
             return False
         return True
 
-    def compute_alpha(self, cell1, cell2, basis1, basis2, textmode=False):
-
+    def compute_alpha(self, cell1: dict, cell2: dict, basis1, basis2) -> float:
+        """
+        Calculates the rotation angle of the lattice of one cell relative to the lattice of another - the alpha angle.
+        Args:
+            cell1 (dict): first cell;
+            cell2 (dict): second cell;
+            basis1 (list): list of two lattice vectors of the first cell;
+            basis2 (list): list of two lattice vectors of the second cell;
+        """
         if cell1["V1_abs"] > cell1["V2_abs"]:
             V11 = cell1["V1"]
             V12 = cell1["V2"]
@@ -405,7 +561,6 @@ class Supercell:
         else:
             V21 = cell2["V2"]
             V22 = cell2["V1"]
-
         if not eq(cell1["beta"], cell2["beta"], 1.e-5):
             V11 = -V11
 
@@ -413,7 +568,6 @@ class Supercell:
         med_cell1 /= np.linalg.norm(med_cell1)
         med_cell2 = V21 + V22
         med_cell2 /= np.linalg.norm(med_cell2)
-
         med_basis1 = np.array(basis1[0]) + np.array(basis1[1])
         med_basis2 = np.array(basis2[0]) + np.array(basis2[1])
         med_basis1 /= np.linalg.norm(med_basis1)
@@ -425,24 +579,23 @@ class Supercell:
             i = np.array([-med_cell1[1], med_cell1[0]])
             H = np.eye(2) - 2 * np.outer(i, i)
             med_basis1 = np.dot(H, med_basis1)
-
-            if textmode:
-                print('reflex')
-
         angle = angle_v(med_cell2, med_cell1)
         single = single_angle_v(med_cell2, med_cell1)
         R = rotate_matrix(angle)
         if single == 1:
             R = np.transpose(R)
         med_basis1 = np.dot(R, med_basis1)
-
         alpha = acute_angle_v(med_basis1, med_basis2)
-        if textmode:
-            print(f'{alpha:.3f}')
-
         return float(alpha)
 
-    def create_supercell(self, config):
+    def create_supercell(self, config: list) -> dict:
+        """
+        Creates a supercell from a configuration list.
+        Args:
+            config: configuration list, see more in method build_supercell()
+        Returns:
+            dict: supercell, see more in the description of this class
+        """
         k11 = int(config[0])
         k12 = int(config[1])
         k21 = int(config[2])
@@ -473,7 +626,15 @@ class Supercell:
 
         return {"me": me_cell, "gr": gr_cell, "eps1": eps1, "eps2": eps2, "eps_oth": eps_oth, "alpha": alpha, "S": S}
 
-    def read_cell_from_file(self, filepath, title):
+    def read_cell_from_file(self, filepath, title: str) -> list:
+        """
+        Reads a cell from a file.
+        Args:
+            filepath (str or Path): path to the file;
+            title: cell name - 'gr' or 'me'.
+        Returns:
+            list: list of cells of type dict (see more in the description of this class)
+        """
         try:
             with open(Path(filepath), 'r') as f:
                 if title == "me":
@@ -491,7 +652,6 @@ class Supercell:
                     b2 = self.g2
                 else:
                     return False, None
-
                 cells = []
                 tmp = f.readline()
                 for line in f:
@@ -509,7 +669,14 @@ class Supercell:
         except:
             return False, None
 
-    def read_supercells_from_csv(self, filepath):
+    def read_supercells_from_csv(self, filepath: str) -> list:
+        """
+        Reads a list of supercells from a '.csv' file and writes it to the mg_supercells attribute.
+        Args:
+            filepath (str or Path): path to the file.
+        Returns:
+            list: list of supercells of type dict (see more in the description of this class)
+        """
         df = pd.read_csv(filepath)
         mg_supercells = []
         for i in range(df.shape[0]):
@@ -520,7 +687,14 @@ class Supercell:
         self.mg_supercells = mg_supercells
         return mg_supercells
 
-    def write_supercells_in_csv(self, mg_supercells=False, directory=Path('./'), id=0):
+    def write_supercells_in_csv(self, mg_supercells:list=False, directory=Path('./'), id:int=0):
+        """
+        Outputs a list of supercells to a '.csv' file.
+        Args:
+            mg_supercells: list of supercells, by default - outputs the value of the mg_supercells attribute;
+            directory (str or Path): directory where the file will be created;
+            id (int): id.
+        """
         directory = Path(directory)
         if type(mg_supercells) is bool:
             mg_supercells = self.mg_supercells
@@ -549,10 +723,22 @@ class Supercell:
             file.write('\n')
             file.write('\n')
 
-    def search_cell(self, radius, title, directory=Path("./"), textmode=False, file_save=False, id=0,
-                    beta_fix=[60.], eq_abs=True, beta_min=20., beta_max=100.):
+    def search_cell(self, radius, title, beta_fix=[60.], eq_abs=True, beta_min=20., beta_max=100.,
+                    id=0, textmode=False, file_save=False, directory=Path("./")) -> list:
+        """
+        Searches for cells for a given radius and search settings.
+            radius: given radius;
+            title: cell name - 'gr' or 'me'
+            beta_fix: search parameter for fixing beta, see more in method search_supercell()
+            eq_abs (bool): search parameter for cell rhombicity, see more in method search_supercell()
+            beta_min (float): minimum value of beta;
+            beta_max (float): maximum value of beta;
+            id: id
+            textmode: if True, search information will be displayed on the screen
+            file_save: if True, the cell search result will be written to a file
+            directory: directory where the search result will be written (if necessary)
+        """
         directory = Path(directory)
-
         if title == "gr":
             a = self.gr_a
             b1 = self.g1
@@ -595,7 +781,6 @@ class Supercell:
                           f'{l / N_all * 100:.8f}', '%', end='\r')
                     last_print_time = current_time
                 beta = acute_angle_v(vectors[i][0], vectors[j][0])
-
                 if self.good_cell(vectors[i][1], vectors[j][1], beta, beta_fix, eq_abs, beta_min, beta_max):
                     good = True
                     cell = {"V1": vectors[i][0], "V1_abs": vectors[i][1], "n11": vectors[i][2], "n12": vectors[i][3],
@@ -633,51 +818,70 @@ class Supercell:
                 print(f'Error in save {title} file')
         return cells
 
-    def func_opt_eps(self, eps1, eps2):
+    def func_opt_eps(self, eps1:float, eps2:float) -> float:
+        """
+        Function whose minimum corresponds to the best supercell in terms of comparing
+        the mismatch parameter and anisotropy.
+        """
         return min([abs(eps1), abs(eps2)]) * abs(eps1 - eps2)
 
     def search_supercell(self, radius: float = 20, eps_max: float = 2.5, eps_min: float = 0., id: int = 0,
-                         beta_fix: float = [60.], eq_abs: bool = True,
-                         textmode: bool = True, beta_min: float = 20., beta_max: float = 100., csv: bool = False,
-                         eq_eps: float = 1.e-1,
-                         directory_res=Path("./"), graphene_save: bool = False, graphene_from_file: str = "",
-                         metal_save: bool = False,
-                         metal_from_file: str = ""):
-
+                         beta_fix = [60.], beta_min: float = 20., beta_max: float = 100., eq_abs: bool = True,
+                         eq_eps: float = 1.e-1, textmode: bool = True, csv: bool = False, directory_res=Path("./"),
+                         graphene_save: bool = False, graphene_from_file: str = "",
+                         metal_save: bool = False, metal_from_file: str = "") -> list:
+        """
+        Searches for supercells for a given radius and search settings,
+        writes the result to the mg_supercell attribute.
+        Args:
+            radius (float): search radius (in angstroms) - supercell vector lengths will not exceed the radius;
+            eps_max (float): maximum mismatch parameter (in %)
+            eps_min (float): minimum mismatch parameter (in %)
+            id (ind): search id
+            beta_fix (list or bool): if False, the beta angle (in degrees) is completely unfixed and can vary
+            from beta_min to beta_max; if [beta1, beta2, ...], the beta angle can only take values from the list;
+            beta_min (float): minimum value of the beta angle (in degrees);
+            beta_max (float): maximum value of the beta angle (in degrees);
+            eq_abs (bool): if 'True', cells will only be rhombic, if 'False', then not;
+            eq_eps (float): maximum anisotropy - difference between eps1 and eps2 (in %);
+            textmode (str): if True, search information will be displayed on the screen;
+            csv (bool): if True, the search result is output to a .csv file;
+            directory_res: directory where the search result file will be written (if necessary);
+            graphene_save, metal_save (bool): if True, the cell search result will be written to a file;
+            graphene_from_file, metal_from_file (str or Path): if not an empty string, the method will read cells from the file.
+        Returns:
+            list: list of supercells of type dict (see more in the class description).
+        """
         directory_res = Path(directory_res)
         if eq(beta_min, 0., 1.e-4):
             beta_min = 1.e-2
         if eq(eq_eps, 0., 1.e-6):
             eq_eps = 1.e-5
-
         if type(beta_fix) is float or type(beta_fix) is int:
             beta_fix = [beta_fix]
-        if beta_fix == True:
+        if type(beta_fix) is bool and beta_fix == True:
             beta_fix = [60.]
 
         if metal_from_file != "":
             metal_from_file, me_cells = self.read_cell_from_file(metal_from_file, "me")
             if textmode:
                 if metal_from_file:
-                    print(f'{self.title_me}_{self.lat_me}_{id}' + f': N of me_cells =', len(me_cells),
-                          '                 ')
+                    print(f'{self.title_me}_{self.lat_me}_{id}' + f': N of me_cells =', len(me_cells), '                          ')
                 else:
                     print(f'Metal file not found')
         if graphene_from_file != "":
             graphene_from_file, gr_cells = self.read_cell_from_file(graphene_from_file, "gr")
             if textmode:
                 if graphene_from_file:
-                    print(f'{self.title_me}_{self.lat_me}_{id}' + f': N of gr_cells =', len(gr_cells),
-                          '                 ')
+                    print(f'{self.title_me}_{self.lat_me}_{id}' + f': N of gr_cells =', len(gr_cells), '                          ')
                 else:
                     print(f'Grahpene file not found')
-
         if not metal_from_file:
-            me_cells = self.search_cell(radius, "me", directory_res, textmode, metal_save, id, beta_fix, eq_abs,
-                                        beta_min, beta_max)
+            me_cells = self.search_cell(radius, "me", beta_fix, eq_abs, beta_min, beta_max, id,
+                                        textmode, metal_save, directory_res)
         if not graphene_from_file:
-            gr_cells = self.search_cell(radius * (1 + eps_max / 100), "gr", directory_res, textmode, graphene_save, id,
-                                        beta_fix, eq_abs, beta_min, beta_max)
+            gr_cells = self.search_cell(radius * (1 + eps_max / 100), "gr", beta_fix, eq_abs, beta_min, beta_max, id,
+                                        textmode, graphene_save, directory_res)
 
         N_all = len(me_cells) * len(gr_cells)
         l = 0
@@ -690,7 +894,6 @@ class Supercell:
                     eps2 = (me_cell["V2_abs"] - gr_cell["V2_abs"]) / gr_cell["V2_abs"] * 100
                     eps1_oth = (me_cell["V1_abs"] - gr_cell["V2_abs"]) / gr_cell["V2_abs"] * 100
                     eps2_oth = (me_cell["V2_abs"] - gr_cell["V1_abs"]) / gr_cell["V1_abs"] * 100
-
                     direct = False
                     other = False
                     if eq(eps1, eps2, eq_eps) and eps_min < abs(eps1) < eps_max and eps_min < abs(eps2) < eps_max:
@@ -698,7 +901,6 @@ class Supercell:
                     if eq(eps1_oth, eps2_oth, eq_eps) and eps_min < abs(eps1_oth) < eps_max and eps_min < abs(
                             eps2_oth) < eps_max:
                         other = True
-
                     if direct:
                         if other:
                             if self.func_opt_eps(eps1, eps2) < self.func_opt_eps(eps1_oth, eps2_oth):
@@ -717,18 +919,15 @@ class Supercell:
                             mg_supercell = {"me": me_cell, "gr": gr_cell, "eps1": eps1_oth, "eps2": eps2_oth,
                                             "eps_oth": True}
                             mg_supercells.append(mg_supercell)
-
                 l += 1
                 current_time = time.time()
                 if textmode and current_time - last_print_time >= 0.1:
                     print(f'{self.title_me}_{self.lat_me}_{id}' + f': Group in mg_supercells: ',
                           f'{l / N_all * 100:.8f}', '%', end='\r')
                     last_print_time = current_time
-
         if textmode:
             print(f'{self.title_me}_{self.lat_me}_{id}' + f': Group in mg_supercells: ', f'{100:.8f}', '%', end='\r')
-            print(f'{self.title_me}_{self.lat_me}_{id}' + f': N of mg_supercells =', len(mg_supercells),
-                  '                        ')
+            print(f'{self.title_me}_{self.lat_me}_{id}' + f': N of mg_supercells =', len(mg_supercells), '                            ')
 
         for mg_supercell in mg_supercells:
             mg_supercell["alpha"] = self.compute_alpha(mg_supercell["gr"], mg_supercell["me"],
@@ -737,16 +936,13 @@ class Supercell:
                 np.radians(mg_supercell["me"]["beta"]))
 
         mg_groups = group_el(mg_supercells, self.eq_mg_supercell)
-
         mg_supercells = []
         for group in mg_groups:
             keyed_group = np.array([group[i]["S"] for i in range(len(group))])
             min_index = np.argmin(keyed_group)
             mg_supercells.append(group[min_index])
         if textmode:
-            print(f'{self.title_me}_{self.lat_me}_{id}' + ': N of unique mg_supercells =', len(mg_supercells),
-                  '        ')
-
+            print(f'{self.title_me}_{self.lat_me}_{id}' + ': N of unique mg_supercells =', len(mg_supercells), '                   ')
         mg_supercells.sort(key=lambda x: x["S"])
         print(f'{self.title_me}_{self.lat_me}_{id}' + ': Job done\n')
 
@@ -755,9 +951,24 @@ class Supercell:
             self.write_supercells_in_csv(directory=directory_res, id=id)
         return mg_supercells
 
-    def build_supercell(self, config=False, mg_supercell=False, directory_res=Path('./'), n_me_layers=3, id: int = 0,
-                        textmode=False,
-                        supercell_save=True, save_nodef_graphene=False):
+    def build_supercell(self, config:list=False, mg_supercell:dict=False, n_me_layers:int=3, id:int=0,
+                        textmode:bool=False, supercell_save:bool=True, directory_res=Path('./'),
+                        save_nodef_graphene:bool=False):
+        """
+        Builds a supercell according to the configuration list config or mg_supercell object of type dict.
+        Args:
+            config (list): configuration list of 9 numbers: [k11, k12, k21, k22, l11, l12, l21, l22, eps_oth], where
+            the first 8 numbers are the coordinates of the graphene and substrate cells in the basis of the corresponding lattice vectors,
+            eps_oth - if 0, the first graphene vector is matched with the first substrate vector,
+            if 1 - the first graphene vector is matched with the second substrate vector;
+            mg_supercell (dict): supercell of type dict (see more in the description of this class);
+            n_me_layers (int): number of substrate layers;
+            id (int): build id;
+            textmode (str): if True, build information will be displayed on the screen;
+            supercell_save (bool): if True, the build result will be written to a file;
+            directory_res (str or Path): directory where the search result file will be written (if necessary);
+            save_nodef_graphene (bool): if True, the build result of undeformed graphene will be written to a file.
+        """
         directory_res = Path(directory_res)
         if type(mg_supercell) is bool:
             mg_supercell = self.create_supercell(config)
@@ -808,7 +1019,6 @@ class Supercell:
             if self.on_bounary(atom, G1, G2):
                 continue
             gr_surface.append([atom[0], atom[1], 0])
-
         if textmode:
             print(f'{self.title_me}{id}: Graphen: ', len(gr_surface))
 
@@ -863,7 +1073,6 @@ class Supercell:
         l2_me = max_m2 - min_m2
         size1 = l1_me + 6
         size2 = l2_me + 6
-
         cell_me_all = self.build_me(size1, size2, n_me_layers)
         t = cell_me_all[0][2]
         for atom in cell_me_all:
@@ -873,7 +1082,6 @@ class Supercell:
         Med = (size2 // 2 - 1) * size1 + size1 // 2 - 1
         trans = -M1 / 2 - M2 / 2
         coord = [cell_me_all[Med][0] + trans[0], cell_me_all[Med][1] + trans[1]]
-
         cell_me_tmp = cell_me_all[0:size1 * size2]
         eps_nach = []
         for i in range(size1 * size2):
@@ -896,7 +1104,6 @@ class Supercell:
             if self.on_bounary(atom[:-1], M1, M2):
                 continue
             cell_me.append([atom[0], atom[1], atom[2]])
-
         if textmode:
             print(f'{self.title_me}{id}: Me ready:', len(cell_me))
 
@@ -904,14 +1111,12 @@ class Supercell:
         recalculate = False
         beta_gr = angle_v(G1, G2)
         beta_me = angle_v(M1, M2)
-
         if not eq(beta_gr, beta_me, 1.e-5):
             for atom in gr_surface:
                 atom[0] -= G1[0]
                 atom[1] -= G1[1]
             G1 = -G1
             recalculate = True
-
         med_me = M1 + M2
         med_me /= np.linalg.norm(med_me)
         med_gr = G1 + G2
@@ -931,7 +1136,6 @@ class Supercell:
         R = rotate_matrix(alpha)
         if single == 1:
             R = np.transpose(R)
-
         G1 = np.dot(R, G1)
         G2 = np.dot(R, G2)
         gr_surface = linear_map(gr_surface, R)
@@ -942,23 +1146,19 @@ class Supercell:
             cell[0][i] = M1[i]
         for i in range(2):
             cell[1][i] = M2[i]
-
         cell[2] = np.array([0, 0, self.z_dist])
-
         supercell = []
         max1 = 0
         for atom in cell_me:
             supercell.append([self.title_me, atom[0], atom[1], atom[2]])
             if atom[2] > max1:
                 max1 = atom[2]
-
         for atom in gr_surface:
             atom[2] += (max1 + self.distance)
             supercell.append(['C', atom[0], atom[1], atom[2]])
 
         cell0 = np.array([cell[0][0], cell[0][1]])
         cell1 = np.array([cell[1][0], cell[1][1]])
-
         zero = [1, 0]
         angle = angle_v(cell0, zero)
         single = single_angle_v(cell0, zero)
@@ -969,12 +1169,10 @@ class Supercell:
         else:
             new0 = np.dot(np.transpose(R), cell0)
             new1 = np.dot(np.transpose(R), cell1)
-
         if single_angle_v(zero, new1) == 1:
             for i in range(2):
                 cell[0][i] = new0[i]
                 cell[1][i] = new1[i]
-
             for atom in supercell:
                 vector = np.array([atom[1], atom[2]])
                 if single == 1:
@@ -993,11 +1191,9 @@ class Supercell:
             else:
                 new0 = np.dot(np.transpose(R), cell0)
                 new1 = np.dot(np.transpose(R), cell1)
-
             for i in range(2):
                 cell[0][i] = new0[i]
                 cell[1][i] = new1[i]
-
             for atom in supercell:
                 vector = np.array([atom[1], atom[2]])
                 if single == 1:
@@ -1006,19 +1202,16 @@ class Supercell:
                     vector = np.dot(np.transpose(R), vector)
                 atom[1] = vector[0]
                 atom[2] = vector[1]
-
         if abs(cell[1][1]) < 1.e-12:
             for i in range(2):
                 tmp = cell[0][i]
                 cell[0][i] = cell[1][i]
                 cell[1][i] = tmp
-
         cell[0][1] = 0
 
         v1 = np.array([cell[0][0], cell[0][1]])
         v2 = np.array([cell[1][0], cell[1][1]])
         S = np.linalg.norm(v1) * np.linalg.norm(v2) * np.sin(np.radians(angle_v(v1, v2)))
-
         if textmode:
             print(f'{self.title_me}{id}: Job done')
         try:
@@ -1042,7 +1235,6 @@ class Supercell:
                 for atom in supercell:
                     file.write(atom[
                                    0] + '  ' + f'{round(atom[1], 16):3.16f}  ' + f'{round(atom[2], 16):3.16f}  ' + f'{round(atom[3], 16):3.16f}' + '\n')
-
             with open(directory_res / f'Gr{self.title_me}{id}_{angle_grme:.3f}_{beta:.3f}.txt', 'w',
                       newline='') as file:
                 file.write(r'CELL_PARAMETERS {angstrom}' + '\n')
@@ -1059,9 +1251,20 @@ class Supercell:
                 file.write(f'Number of atoms: {len(supercell)}' + '\n' + '\n')
                 file.write(f'{code_str}' + '\n')
 
-    def build_supercells_from_csv(self, filepath, directory_res=Path('./'), n_me_layers=3, id_start: int = 0,
-                                  textmode=False,
-                                  supercell_save=True, save_nodef_graphene=False):
+    def build_supercells_from_csv(self, filepath, n_me_layers:int=3, id_start: int = 0,
+                                  textmode:bool=False, supercell_save:bool=True, directory_res=Path('./'),
+                                  save_nodef_graphene:bool=False):
+        """
+        Builds supercells from a .csv file.
+        Args:
+            filepath (str or Path): path to the file;
+            n_me_layers (int): number of substrate layers;
+            id_start (int): initial build id;
+            textmode (str): if True, build information will be displayed on the screen;
+            supercell_save (bool): if True, the build result will be written to a file;
+            directory_res (str or Path): directory where the search result file will be written (if necessary);
+            save_nodef_graphene (bool): if True, the build result of undeformed graphene will be written to a file.
+        """
         directory_res = Path(directory_res)
         df = pd.read_csv(filepath)
         for i in range(df.shape[0]):
@@ -1071,9 +1274,20 @@ class Supercell:
                                  id=id_start + i, textmode=textmode, supercell_save=supercell_save,
                                  save_nodef_graphene=save_nodef_graphene)
 
-    def build_supercells_list(self, mg_supercells=False, directory_res=Path('./'), n_me_layers=3, id_start: int = 0,
-                              textmode=False,
-                              supercell_save=True, save_nodef_graphene=False):
+    def build_supercells_list(self, mg_supercells:list=False, n_me_layers:int=3, id_start: int = 0,
+                              textmode:bool=False, supercell_save:bool=True, directory_res=Path('./'),
+                              save_nodef_graphene:bool=False):
+        """
+        Builds supercells from the mg_supercells list or from the mg_supercells attribute of the class.
+        Args:
+            mg_supercells (dict): list of supercells of type dict (see more in the description of this class)
+            n_me_layers (int): number of substrate layers;
+            id_start (int): initial build id;
+            textmode (str): if True, build information will be displayed on the screen;
+            supercell_save (bool): if True, the build result will be written to a file;
+            directory_res (str or Path): directory where the search result file will be written (if necessary);
+            save_nodef_graphene (bool): if True, the build result of undeformed graphene will be written to a file.
+        """
         directory_res = Path(directory_res)
         if type(mg_supercells) is bool:
             mg_supercells = self.mg_supercells
@@ -1082,8 +1296,17 @@ class Supercell:
                                  id=id_start + i, textmode=textmode, supercell_save=supercell_save,
                                  save_nodef_graphene=save_nodef_graphene)
 
-    def compute_mismatch_in_basis(self, mg_supercell, basis=[[1., 0.], [0., 1.]]):
-        # for default basis return matrix, where [0][0] - deformation orthogonal C-C, [1][1] - parallel C-C
+    def compute_mismatch_in_basis(self, mg_supercell:dict, basis:list=[[1., 0.], [0., 1.]]):
+        """
+        Calculates the mismatch matrix in the required basis.
+        Args:
+            mg_supercell (dict): supercell of type dict (see more in the description of this class);
+            basis (list): list of two basis vectors. By default in the unit basis
+            the elements of the mismatch matrix: '00' - deformation orthogonal to the C-C bond, '11' - deformation along the C-C bond,
+            '01' and '10' - shear deformation.
+        Returns:
+            np.ndarray: mismatch matrix (in %).
+        """
         S = np.zeros((2, 2))
         S[0] = mg_supercell["gr"]["V1"]
         S[1] = mg_supercell["gr"]["V2"]
@@ -1096,10 +1319,21 @@ class Supercell:
         B[0] = basis[0]
         B[1] = basis[1]
         B = np.transpose(B)
-
         return np.linalg.multi_dot([np.linalg.inv(B), S, Eps, np.linalg.inv(S), B])
 
-    def compute_deform_of_cc(self, mg_supercell=False, config=False):
+    def compute_deform_of_cc(self, mg_supercell:dict=False, config:list=False):
+        """
+        Calculates the deformation of the supercell along the C-C bond and orthogonal to it.
+        Supercell - according to the configuration list config or mg_supercell object of type dict.
+        Args:
+            config (list): configuration list of 9 numbers: [k11, k12, k21, k22, l11, l12, l21, l22, eps_oth], where
+            the first 8 numbers are the coordinates of the graphene and substrate cells in the basis of the corresponding lattice vectors,
+            eps_oth - if 0, the first graphene vector is matched with the first substrate vector,
+            if 1 - the first graphene vector is matched with the second substrate vector;
+            mg_supercell (dict): supercell of type dict (see more in the description of this class);
+        Returns:
+            float, float: deformation along the C-C bond, deformation orthogonal to the C-C bond (in %).
+        """
         if type(mg_supercell) is bool:
             mg_supercell = self.create_supercell(config)
         M1, M2 = mg_supercell["me"]["V1"], mg_supercell["me"]["V2"]
@@ -1107,7 +1341,6 @@ class Supercell:
             G1, G2 = mg_supercell["gr"]["V1"], mg_supercell["gr"]["V2"]
         else:
             G1, G2 = mg_supercell["gr"]["V2"], mg_supercell["gr"]["V1"]
-
         G1_abs = np.linalg.norm(G1)
         G2_abs = np.linalg.norm(G2)
         M1_abs = np.linalg.norm(M1)
@@ -1135,7 +1368,6 @@ class Supercell:
         cc_arr = []
         for i in range(1, len(gr_surface)):
             cc_arr.append(np.linalg.norm(gr_surface[i] - gr_surface[i - 1]))
-
         cc_arr.sort()
         if abs(cc_arr[0] - cc_arr[1]) < abs(cc_arr[1] - cc_arr[2]):
             cc = cc_arr[2]
