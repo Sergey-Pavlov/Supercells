@@ -19,10 +19,12 @@ from ase.build import diamond111
 def group_el(array:list, elements_eq) -> list:
     """
     Groups equivalent elements of a list according to an equivalence function.
+
     Args:
         array (list): list to be grouped;
         elements_eq: equivalence function f(el_1, el_2) that takes 2 elements and returns
         'True' if the elements are equivalent.
+
     Returns:
         list: list containing sublists of equivalent elements.
     """
@@ -45,8 +47,10 @@ def group_el(array:list, elements_eq) -> list:
 def format_write(numbers:list) -> str:
     """
     Creates a string of numbers spaced with equal intervals.
+
     Args:
-        numbers: list of numbers.
+        numbers: list of numbers to format.
+
     Returns:
         str: string of numbers.
     """
@@ -72,67 +76,87 @@ def format_write(numbers:list) -> str:
 
     return string
 
-def angle_v(v1, v2) -> float:
+def angle_between_vectors(v1: np.ndarray, v2: np.ndarray) -> float:
     """
     Calculates the angle between vectors in degrees.
-    Args:
-        v1 (np.ndarray: first vector;
-        v2 (np.ndarray): second vector.
-    """
-    angle = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
-    if angle >= 1:
-        return 0
-    elif angle <= -1:
-        return 180
-    else:
-        return np.degrees(np.arccos(angle))
 
-def acute_angle_v(v1, v2) -> float:
+    Args:
+        v1: First vector as numpy array.
+        v2: Second vector as numpy array.
+
+    Returns:
+        Angle between vectors in degrees [0, 180].
+    """
+    norm_v1 = np.linalg.norm(v1)
+    norm_v2 = np.linalg.norm(v2)
+
+    if norm_v1 == 0 or norm_v2 == 0:
+        raise ValueError("Vectors must have non-zero magnitude")
+
+    cosine = np.dot(v1, v2) / (norm_v1 * norm_v2)
+    cosine = np.clip(cosine, -1.0, 1.0) #for numerical stability
+
+    return np.degrees(np.arccos(cosine))
+
+def acute_angle_v(v1: np.ndarray, v2: np.ndarray) -> float:
     """
     Calculates the acute angle between vectors in degrees.
-    Args:
-        v1 (np.ndarray): first vector;
-        v2 (np.ndarray): second vector.
-    """
-    angle = angle_v(v1, v2)
-    if angle > 90:
-        angle = 180 - angle
-    return angle
 
-def single_angle_v(v1, v2) -> int:
+    Args:
+        v1: First vector as numpy array.
+        v2: Second vector as numpy array.
+
+    Returns:
+        Acute angle between vectors in degrees [0, 90].
+    """
+    angle = angle_between_vectors(v1, v2)
+    return min(angle, 180 - angle)
+
+def vector_triple_orientation(v1: np.ndarray, v2: np.ndarray) -> int:
     """
     Determines whether vectors v1, v2 and a vector perpendicular to them form a right or left triple.
+
     Args:
         v1 (np.ndarray): first vector;
         v2 (np.ndarray): second vector.
+
     Returns:
         int: if '+1' - right triple, if '-1' - left triple.
     """
-    v11 = [v1[0], v1[1], 0]
-    v12 = [v2[0], v2[1], 0]
-    n = np.cross(v11, v12)
-    if n[2] > 0:
-        return 1
-    else:
-        return -1
+    v11 = np.array([v1[0], v1[1], 0])
+    v12 = np.array([v2[0], v2[1], 0])
+    cross_product = np.cross(v11, v12)
+    return 1 if cross_product[2] > 0 else -1
 
-def rotate_matrix(angle:float) -> np.ndarray:
+def rotate_matrix(angle_degrees: float) -> np.ndarray:
     """
-    Creates a rotation matrix.
+    Creates a 2D rotation matrix for the given angle.
+
     Args:
-        angle: rotation angle
-    """
-    cos = np.cos(np.radians(angle))
-    sin = np.sin(np.radians(angle))
-    return np.array([[cos, -sin], [sin, cos]])
+        angle_degrees: Rotation angle in degrees.
 
-def linear_map(system: list, map_matrix) -> list:
+    Returns:
+        2x2 rotation matrix.
+    """
+    angle_rad = np.radians(angle_degrees)
+    cos_val = np.cos(angle_rad)
+    sin_val = np.sin(angle_rad)
+
+    return np.array([[cos_val, -sin_val],
+                     [sin_val, cos_val]])
+
+def linear_map(system: list, map_matrix: np.ndarray) -> list:
     """
     Performs a two-dimensional linear transformation on a system of atoms.
+
     Args:
         system (list): list of atoms, where an atom is a list of coordinates [x, y];
         map_matrix (np.ndarray): linear transformation matrix.
+
+    Returns:
+        New list of transformed coordinates.
     """
+
     for atom in system:
         vector = np.array([atom[0], atom[1]])
         vector = np.dot(map_matrix, vector)
@@ -140,31 +164,44 @@ def linear_map(system: list, map_matrix) -> list:
         atom[1] = vector[1]
     return system
 
-def eq(a:float, b:float, eps:float) -> bool:
+def are_equal(a: float, b: float, tolerance: float = 1e-5) -> bool:
     """
     Checks equality of numbers with a given tolerance.
+
     Args:
         a: first number;
         b: second number;
         eps: required equality tolerance.
-    """
-    return abs(a - b) <= eps
 
-def divide(x: float, y:float) -> float:
+    Returns:
+        True if |a - b| <= tolerance, False otherwise.
+    """
+    return abs(a - b) <= tolerance
+
+def fractional_remainder(x: float, y:float) -> float:
     """
     Calculates the remainder of dividing a larger number by a smaller one.
-    Args:
-        x: first number;
-        y: second number.
-    """
-    if x > y:
-        maximum = x
-        minimum = y
-    else:
-        maximum = y
-        minimum = x
-    return abs((maximum / minimum) % 1)
 
+    Args:
+        x: First number.
+        y: Second number.
+
+    Returns:
+        Fractional remainder in range [0, 1).
+
+    Raises:
+        ValueError: If both numbers are zero.
+    """
+    if x == 0 and y == 0:
+        raise ValueError("At least one number must be non-zero")
+
+    larger = max(abs(x), abs(y))
+    smaller = min(abs(x), abs(y))
+
+    if smaller == 0:
+        return 0
+
+    return (larger / smaller) % 1
 
 class Supercell:
     """
@@ -410,7 +447,7 @@ class Supercell:
             scell1 (dict): first supercell;
             scell2 (dict): second supercell.
         """
-        if eq(scell1["alpha"], scell2["alpha"], 1.e-5):
+        if are_equal(scell1["alpha"], scell2["alpha"], 1.e-5):
             return True
         if round(abs(scell1["alpha"] - scell2["alpha"]), 5) % 60 <= 1.e-5:
             return True
@@ -425,9 +462,9 @@ class Supercell:
             scell1 (dict): first supercell;
             scell2 (dict): second supercell.
         """
-        if eq(scell1["eps1"], scell2["eps1"], 1.e-5) and eq(scell1["eps2"], scell2["eps2"], 1.e-5):
+        if are_equal(scell1["eps1"], scell2["eps1"], 1.e-5) and are_equal(scell1["eps2"], scell2["eps2"], 1.e-5):
             return True
-        if eq(scell1["eps1"], scell2["eps2"], 1.e-5) and eq(scell1["eps2"], scell2["eps1"], 1.e-5):
+        if are_equal(scell1["eps1"], scell2["eps2"], 1.e-5) and are_equal(scell1["eps2"], scell2["eps1"], 1.e-5):
             return True
         return False
 
@@ -438,10 +475,10 @@ class Supercell:
             scell1 (dict): first supercell;
             scell2 (dict): second supercell.
         """
-        divide1 = divide(scell1["me"]["V1_abs"], scell2["me"]["V1_abs"])
-        divide2 = divide(scell1["me"]["V2_abs"], scell2["me"]["V2_abs"])
-        divide3 = divide(scell1["me"]["V1_abs"], scell2["me"]["V2_abs"])
-        divide4 = divide(scell1["me"]["V2_abs"], scell2["me"]["V1_abs"])
+        divide1 = fractional_remainder(scell1["me"]["V1_abs"], scell2["me"]["V1_abs"])
+        divide2 = fractional_remainder(scell1["me"]["V2_abs"], scell2["me"]["V2_abs"])
+        divide3 = fractional_remainder(scell1["me"]["V1_abs"], scell2["me"]["V2_abs"])
+        divide4 = fractional_remainder(scell1["me"]["V2_abs"], scell2["me"]["V1_abs"])
         return (divide1 <= 1.e-5 and divide2 <= 1.e-5) or (divide3 <= 1.e-5 and divide4 <= 1.e-5)
 
     def on_bounary(self, atom, L1, L2) -> bool:
@@ -493,7 +530,7 @@ class Supercell:
             beta_max (float): maximum value of beta;
         """
         if eq_abs:
-            if not eq(abs1, abs2, 1.e-5):
+            if not are_equal(abs1, abs2, 1.e-5):
                 return False
         if type(beta_fix) is bool:
             if beta < beta_min or beta > beta_max:
@@ -501,7 +538,7 @@ class Supercell:
         else:
             good_beta = False
             for beta_fix_one in beta_fix:
-                if eq(beta, beta_fix_one, 1.e-5):
+                if are_equal(beta, beta_fix_one, 1.e-5):
                     good_beta = True
             if not good_beta:
                 return False
@@ -515,10 +552,10 @@ class Supercell:
              cell1 (dict): first cell;
              cell2 (dict): second cell.
         """
-        if eq(cell1["beta"], cell2["beta"], 1.e-10):
-            if eq(cell1["V1_abs"], cell2["V1_abs"], 1.e-10) and eq(cell1["V2_abs"], cell2["V2_abs"], 1.e-10):
+        if are_equal(cell1["beta"], cell2["beta"], 1.e-10):
+            if are_equal(cell1["V1_abs"], cell2["V1_abs"], 1.e-10) and are_equal(cell1["V2_abs"], cell2["V2_abs"], 1.e-10):
                 return True
-            if eq(cell1["V1_abs"], cell2["V2_abs"], 1.e-10) and eq(cell1["V2_abs"], cell2["V1_abs"], 1.e-10):
+            if are_equal(cell1["V1_abs"], cell2["V2_abs"], 1.e-10) and are_equal(cell1["V2_abs"], cell2["V1_abs"], 1.e-10):
                 return True
         return False
 
@@ -530,7 +567,7 @@ class Supercell:
             scell1 (dict): first supercell;
             scell2 (dict): second supercell;
         """
-        if not eq(scell1["me"]["beta"], scell2["me"]["beta"], 1.e-5):
+        if not are_equal(scell1["me"]["beta"], scell2["me"]["beta"], 1.e-5):
             return False
         if not self.eq_alpha(scell1, scell2):
             return False
@@ -561,7 +598,7 @@ class Supercell:
         else:
             V21 = cell2["V2"]
             V22 = cell2["V1"]
-        if not eq(cell1["beta"], cell2["beta"], 1.e-5):
+        if not are_equal(cell1["beta"], cell2["beta"], 1.e-5):
             V11 = -V11
 
         med_cell1 = V11 + V12
@@ -575,12 +612,12 @@ class Supercell:
 
         V21_abs = np.linalg.norm(V21)
         V22_abs = np.linalg.norm(V22)
-        if single_angle_v(V11, V12) != single_angle_v(V21, V22) and not eq(V21_abs, V22_abs, 1.e-5):
+        if vector_triple_orientation(V11, V12) != vector_triple_orientation(V21, V22) and not are_equal(V21_abs, V22_abs, 1.e-5):
             i = np.array([-med_cell1[1], med_cell1[0]])
             H = np.eye(2) - 2 * np.outer(i, i)
             med_basis1 = np.dot(H, med_basis1)
-        angle = angle_v(med_cell2, med_cell1)
-        single = single_angle_v(med_cell2, med_cell1)
+        angle = angle_between_vectors(med_cell2, med_cell1)
+        single = vector_triple_orientation(med_cell2, med_cell1)
         R = rotate_matrix(angle)
         if single == 1:
             R = np.transpose(R)
@@ -853,9 +890,9 @@ class Supercell:
             list: list of supercells of type dict (see more in the class description).
         """
         directory_res = Path(directory_res)
-        if eq(beta_min, 0., 1.e-4):
+        if are_equal(beta_min, 0., 1.e-4):
             beta_min = 1.e-2
-        if eq(eq_eps, 0., 1.e-6):
+        if are_equal(eq_eps, 0., 1.e-6):
             eq_eps = 1.e-5
         if type(beta_fix) is float or type(beta_fix) is int:
             beta_fix = [beta_fix]
@@ -889,16 +926,16 @@ class Supercell:
         mg_supercells = []
         for me_cell in me_cells:
             for gr_cell in gr_cells:
-                if eq(me_cell["beta"], gr_cell["beta"], 1.e-5):
+                if are_equal(me_cell["beta"], gr_cell["beta"], 1.e-5):
                     eps1 = (me_cell["V1_abs"] - gr_cell["V1_abs"]) / gr_cell["V1_abs"] * 100
                     eps2 = (me_cell["V2_abs"] - gr_cell["V2_abs"]) / gr_cell["V2_abs"] * 100
                     eps1_oth = (me_cell["V1_abs"] - gr_cell["V2_abs"]) / gr_cell["V2_abs"] * 100
                     eps2_oth = (me_cell["V2_abs"] - gr_cell["V1_abs"]) / gr_cell["V1_abs"] * 100
                     direct = False
                     other = False
-                    if eq(eps1, eps2, eq_eps) and eps_min < abs(eps1) < eps_max and eps_min < abs(eps2) < eps_max:
+                    if are_equal(eps1, eps2, eq_eps) and eps_min < abs(eps1) < eps_max and eps_min < abs(eps2) < eps_max:
                         direct = True
-                    if eq(eps1_oth, eps2_oth, eq_eps) and eps_min < abs(eps1_oth) < eps_max and eps_min < abs(
+                    if are_equal(eps1_oth, eps2_oth, eq_eps) and eps_min < abs(eps1_oth) < eps_max and eps_min < abs(
                             eps2_oth) < eps_max:
                         other = True
                     if direct:
@@ -1012,9 +1049,9 @@ class Supercell:
         for atom in gr_surf_all:
             if self.atom_not_inside(atom, G1, G2):
                 continue
-            if eq(atom[0], G1[0], 1.e-5) and eq(atom[1], G1[1], 1.e-5):
+            if are_equal(atom[0], G1[0], 1.e-5) and are_equal(atom[1], G1[1], 1.e-5):
                 continue
-            if eq(atom[0], G2[0], 1.e-5) and eq(atom[1], G2[1], 1.e-5):
+            if are_equal(atom[0], G2[0], 1.e-5) and are_equal(atom[1], G2[1], 1.e-5):
                 continue
             if self.on_bounary(atom, G1, G2):
                 continue
@@ -1024,7 +1061,7 @@ class Supercell:
 
         if save_nodef_graphene:
             swap = False
-            if single_angle_v(G1, G2) == -1:
+            if vector_triple_orientation(G1, G2) == -1:
                 swap = True
                 tmp = G2
                 G2 = G1
@@ -1097,9 +1134,9 @@ class Supercell:
         for atom in cell_me_all:
             if self.atom_not_inside(atom[:-1], M1, M2):
                 continue
-            if eq(atom[0], M1[0], 1.e-5) and eq(atom[1], M1[1], 1.e-5):
+            if are_equal(atom[0], M1[0], 1.e-5) and are_equal(atom[1], M1[1], 1.e-5):
                 continue
-            if eq(atom[0], M2[0], 1.e-5) and eq(atom[1], M2[1], 1.e-5):
+            if are_equal(atom[0], M2[0], 1.e-5) and are_equal(atom[1], M2[1], 1.e-5):
                 continue
             if self.on_bounary(atom[:-1], M1, M2):
                 continue
@@ -1109,9 +1146,9 @@ class Supercell:
 
         # Recalculate med_gr
         recalculate = False
-        beta_gr = angle_v(G1, G2)
-        beta_me = angle_v(M1, M2)
-        if not eq(beta_gr, beta_me, 1.e-5):
+        beta_gr = angle_between_vectors(G1, G2)
+        beta_me = angle_between_vectors(M1, M2)
+        if not are_equal(beta_gr, beta_me, 1.e-5):
             for atom in gr_surface:
                 atom[0] -= G1[0]
                 atom[1] -= G1[1]
@@ -1124,15 +1161,15 @@ class Supercell:
 
         # Reflex
         reflex = False
-        if single_angle_v(M1, M2) != single_angle_v(G1, G2) and not eq(M1_abs, M2_abs, 1.e-5):
+        if vector_triple_orientation(M1, M2) != vector_triple_orientation(G1, G2) and not are_equal(M1_abs, M2_abs, 1.e-5):
             i = np.array([-med_gr[1], med_gr[0]])
             H = np.eye(2) - 2 * np.outer(i, i)
             gr_surface = linear_map(gr_surface, H)
             reflex = True
 
         # Rotate Gr to Me
-        alpha = angle_v(med_me, med_gr)
-        single = single_angle_v(med_me, med_gr)
+        alpha = angle_between_vectors(med_me, med_gr)
+        single = vector_triple_orientation(med_me, med_gr)
         R = rotate_matrix(alpha)
         if single == 1:
             R = np.transpose(R)
@@ -1160,8 +1197,8 @@ class Supercell:
         cell0 = np.array([cell[0][0], cell[0][1]])
         cell1 = np.array([cell[1][0], cell[1][1]])
         zero = [1, 0]
-        angle = angle_v(cell0, zero)
-        single = single_angle_v(cell0, zero)
+        angle = angle_between_vectors(cell0, zero)
+        single = vector_triple_orientation(cell0, zero)
         R = rotate_matrix(angle)
         if single == 1:
             new0 = np.dot(R, cell0)
@@ -1169,7 +1206,7 @@ class Supercell:
         else:
             new0 = np.dot(np.transpose(R), cell0)
             new1 = np.dot(np.transpose(R), cell1)
-        if single_angle_v(zero, new1) == 1:
+        if vector_triple_orientation(zero, new1) == 1:
             for i in range(2):
                 cell[0][i] = new0[i]
                 cell[1][i] = new1[i]
@@ -1182,8 +1219,8 @@ class Supercell:
                 atom[1] = vector[0]
                 atom[2] = vector[1]
         else:
-            angle = angle_v(cell1, zero)
-            single = single_angle_v(cell1, zero)
+            angle = angle_between_vectors(cell1, zero)
+            single = vector_triple_orientation(cell1, zero)
             R = rotate_matrix(angle)
             if single == 1:
                 new0 = np.dot(R, cell0)
@@ -1211,7 +1248,7 @@ class Supercell:
 
         v1 = np.array([cell[0][0], cell[0][1]])
         v2 = np.array([cell[1][0], cell[1][1]])
-        S = np.linalg.norm(v1) * np.linalg.norm(v2) * np.sin(np.radians(angle_v(v1, v2)))
+        S = np.linalg.norm(v1) * np.linalg.norm(v2) * np.sin(np.radians(angle_between_vectors(v1, v2)))
         if textmode:
             print(f'{self.title_me}{id}: Job done')
         try:
