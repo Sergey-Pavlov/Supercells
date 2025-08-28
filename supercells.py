@@ -5,7 +5,6 @@ import math as m
 import numpy as np
 import pandas as pd
 from ase import Atoms
-from tqdm import tqdm
 
 from ase.build import fcc100
 from ase.build import fcc110
@@ -810,15 +809,15 @@ class Supercell:
         N_all = len(vectors) ** 2 / 2
         l = 0
         cells = []
-        #last_print_time = time.time()
-        for i in tqdm(range(len(vectors))):
+        last_print_time = time.time()
+        for i in range(len(vectors)):
             for j in range(i + 1, len(vectors)):
                 l += 1
-                #current_time = time.time()
-                #if textmode and current_time - last_print_time >= 0.1:
-                #    print(f'{self.title_sub}_{self.lat_sub}_{id}' + f': Group in {title}_cells: ',
-                #          f'{l / N_all * 100:.8f}', '%', end='\r')
-                #    last_print_time = current_time
+                current_time = time.time()
+                if textmode and current_time - last_print_time >= 0.1:
+                    print(f'{self.title_sub}_{self.lat_sub}_{id}' + f': Group in {title}_cells: ',
+                          f'{l / N_all * 100:.8f}', '%', end='\r')
+                    last_print_time = current_time
                 beta = acute_angle_v(vectors[i][0], vectors[j][0])
                 if self._is_valid_cell(vectors[i][1], vectors[j][1], beta, beta_fix, eq_abs, beta_min, beta_max):
                     good = True
