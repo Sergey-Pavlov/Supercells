@@ -1,4 +1,4 @@
-# Supercell
+# Supercells
 ## Search, Construction, and Analysis of Graphene-Substrate Supercells
 A Python program for searching, constructing, and analyzing supercells of graphene-substrate heterostructures.
 
