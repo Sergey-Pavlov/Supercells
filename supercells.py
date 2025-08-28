@@ -5,6 +5,7 @@ import math as m
 import numpy as np
 import pandas as pd
 from ase import Atoms
+from tqdm import tqdm
 
 from ase.build import fcc100
 from ase.build import fcc110
@@ -45,7 +46,7 @@ def group_el(array:list, elements_eq) -> list:
         ar_group.append(group)
     return ar_group
 
-def format_write(numbers:list) -> str:
+def format_write(numbers: list) -> str:
     """
     Creates a string of numbers spaced with equal intervals.
 
@@ -77,7 +78,7 @@ def format_write(numbers:list) -> str:
 
     return string
 
-def angle_between_vectors(v1: np.ndarray, v2: np.ndarray) -> float:
+def angle_v(v1: np.ndarray, v2: np.ndarray) -> float:
     """
     Calculates the angle between vectors in degrees.
 
@@ -95,7 +96,7 @@ def angle_between_vectors(v1: np.ndarray, v2: np.ndarray) -> float:
         raise ValueError("Vectors must have non-zero magnitude")
 
     cosine = np.dot(v1, v2) / (norm_v1 * norm_v2)
-    cosine = np.clip(cosine, -1.0, 1.0) #for numerical stability
+    cosine = np.clip(cosine, -1.0, 1.0) # for numerical stability
 
     return np.degrees(np.arccos(cosine))
 
@@ -110,7 +111,7 @@ def acute_angle_v(v1: np.ndarray, v2: np.ndarray) -> float:
     Returns:
         Acute angle between vectors in degrees [0, 90].
     """
-    angle = angle_between_vectors(v1, v2)
+    angle = angle_v(v1, v2)
     return min(angle, 180 - angle)
 
 def vector_triple_orientation(v1: np.ndarray, v2: np.ndarray) -> int:
@@ -157,7 +158,8 @@ def linear_map(system: list, map_matrix: np.ndarray) -> list:
     Returns:
         New list of transformed coordinates.
     """
-    transformed = np.stack(system) @ map_matrix.T
+    system_array = np.stack(system)
+    transformed = np.dot(system_array, map_matrix.T)
     return [vec for vec in transformed]
 
 def are_equal(a: float, b: float, tolerance: float = 1e-5) -> bool:
@@ -220,6 +222,8 @@ class Supercell:
 
     def __init__(self, title_sub: str = "", lat_sub: str = "", z_dist: float = 25., distance: float = 3):
         """
+        Initializes a Supercell instance
+
         Args:
             title_sub (str): substrate name;
             lat_sub (str): substrate surface name, implemented:
@@ -278,7 +282,7 @@ class Supercell:
                 self.sub_a_3d_exp = 2.5071
                 self.sub_c_exp = 4.0686
 
-    def _compute_sub_a(self):
+    def _compute_sub_a(self) -> None:
         """
         Calculates substrate lattice vectors and their lengths depending on the set surface type
         and lattice parameter.
@@ -515,8 +519,8 @@ class Supercell:
         else:
             return True
 
-    def _good_cell(self, abs1: float, abs2: float, beta: float, beta_fix, eq_abs: bool,
-                   beta_min: float, beta_max: float):
+    def _is_valid_cell(self, abs1: float, abs2: float, beta: float, beta_fix, eq_abs: bool,
+                       beta_min: float, beta_max: float):
         """
         Checks if a cell meets the search conditions.
         Args:
@@ -535,11 +539,11 @@ class Supercell:
             if beta < beta_min or beta > beta_max:
                 return False
         else:
-            good_beta = False
+            valid_beta = False
             for beta_fix_one in beta_fix:
                 if are_equal(beta, beta_fix_one, 1.e-5):
-                    good_beta = True
-            if not good_beta:
+                    valid_beta = True
+            if not valid_beta:
                 return False
         return True
 
@@ -615,7 +619,7 @@ class Supercell:
             i = np.array([-med_cell1[1], med_cell1[0]])
             H = np.eye(2) - 2 * np.outer(i, i)
             med_basis1 = np.dot(H, med_basis1)
-        angle = angle_between_vectors(med_cell2, med_cell1)
+        angle = angle_v(med_cell2, med_cell1)
         single = vector_triple_orientation(med_cell2, med_cell1)
         R = rotate_matrix(angle)
         if single == 1:
@@ -806,17 +810,17 @@ class Supercell:
         N_all = len(vectors) ** 2 / 2
         l = 0
         cells = []
-        last_print_time = time.time()
-        for i in range(len(vectors)):
+        #last_print_time = time.time()
+        for i in tqdm(range(len(vectors))):
             for j in range(i + 1, len(vectors)):
                 l += 1
-                current_time = time.time()
-                if textmode and current_time - last_print_time >= 0.1:
-                    print(f'{self.title_sub}_{self.lat_sub}_{id}' + f': Group in {title}_cells: ',
-                          f'{l / N_all * 100:.8f}', '%', end='\r')
-                    last_print_time = current_time
+                #current_time = time.time()
+                #if textmode and current_time - last_print_time >= 0.1:
+                #    print(f'{self.title_sub}_{self.lat_sub}_{id}' + f': Group in {title}_cells: ',
+                #          f'{l / N_all * 100:.8f}', '%', end='\r')
+                #    last_print_time = current_time
                 beta = acute_angle_v(vectors[i][0], vectors[j][0])
-                if self._good_cell(vectors[i][1], vectors[j][1], beta, beta_fix, eq_abs, beta_min, beta_max):
+                if self._is_valid_cell(vectors[i][1], vectors[j][1], beta, beta_fix, eq_abs, beta_min, beta_max):
                     good = True
                     cell = {"V1": vectors[i][0], "V1_abs": vectors[i][1], "n11": vectors[i][2], "n12": vectors[i][3],
                             "V2": vectors[j][0], "V2_abs": vectors[j][1], "n21": vectors[j][2], "n22": vectors[j][3],
@@ -986,9 +990,9 @@ class Supercell:
             self.write_supercells_in_csv(directory=directory_res, id=id)
         return gs_supercells
 
-    def build_supercell(self, config:list=False, gs_supercell:dict=False, n_sub_layers:int=3, id:int=0,
-                        textmode:bool=False, supercell_save:bool=True, directory_res=Path('./'),
-                        save_nodef_graphene:bool=False):
+    def build_supercell(self, config: list = False, gs_supercell: dict = False, n_sub_layers: int = 3, id: int = 0,
+                        textmode: bool = False, supercell_save: bool = False, directory_res = Path('./'),
+                        save_nodef_graphene: bool = False) -> Atoms:
         """
         Builds a supercell according to the configuration list config or gs_supercell object of type dict.
         Args:
@@ -1008,20 +1012,32 @@ class Supercell:
         """
         directory_res = Path(directory_res)
         if type(gs_supercell) is bool:
-            gs_supercell = self.create_supercell(config)
-
-        angle_grsub = gs_supercell["alpha"]
-        M1, M2 = gs_supercell["sub"]["V1"], gs_supercell["sub"]["V2"]
-        l11, l12, l21, l22 = int(gs_supercell["sub"]["n11"]), int(gs_supercell["sub"]["n12"]), int(
-            gs_supercell["sub"]["n21"]), int(gs_supercell["sub"]["n22"])
-        if not gs_supercell["eps_oth"]:
-            G1, G2 = gs_supercell["gr"]["V1"], gs_supercell["gr"]["V2"]
-            k11, k12, k21, k22 = int(gs_supercell["gr"]["n11"]), int(gs_supercell["gr"]["n12"]), int(
-                gs_supercell["gr"]["n21"]), int(gs_supercell["gr"]["n22"])
+            gs_supercell_1 = self.create_supercell(config)
         else:
-            G1, G2 = gs_supercell["gr"]["V2"], gs_supercell["gr"]["V1"]
-            k11, k12, k21, k22 = int(gs_supercell["gr"]["n21"]), int(gs_supercell["gr"]["n22"]), int(
-                gs_supercell["gr"]["n11"]), int(gs_supercell["gr"]["n12"])
+            config = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+            config[0] = gs_supercell['gr']['n11']
+            config[1] = gs_supercell['gr']['n12']
+            config[2] = gs_supercell['gr']['n21']
+            config[3] = gs_supercell['gr']['n22']
+            config[4] = gs_supercell['sub']['n11']
+            config[5] = gs_supercell['sub']['n12']
+            config[6] = gs_supercell['sub']['n21']
+            config[7] = gs_supercell['sub']['n22']
+            config[8] = gs_supercell['eps_oth']
+            gs_supercell_1 = self.create_supercell(config)
+
+        angle_grsub = gs_supercell_1["alpha"]
+        M1, M2 = gs_supercell_1["sub"]["V1"], gs_supercell_1["sub"]["V2"]
+        l11, l12, l21, l22 = (int(gs_supercell_1["sub"]["n11"]), int(gs_supercell_1["sub"]["n12"]),
+                              int(gs_supercell_1["sub"]["n21"]), int(gs_supercell_1["sub"]["n22"]))
+        if not gs_supercell_1["eps_oth"]:
+            G1, G2 = gs_supercell_1["gr"]["V1"], gs_supercell_1["gr"]["V2"]
+            k11, k12, k21, k22 = (int(gs_supercell_1["gr"]["n11"]), int(gs_supercell_1["gr"]["n12"]),
+                                  int(gs_supercell_1["gr"]["n21"]), int(gs_supercell_1["gr"]["n22"]))
+        else:
+            G1, G2 = gs_supercell_1["gr"]["V2"], gs_supercell_1["gr"]["V1"]
+            k11, k12, k21, k22 = (int(gs_supercell_1["gr"]["n21"]), int(gs_supercell_1["gr"]["n22"]),
+                                  int(gs_supercell_1["gr"]["n11"]), int(gs_supercell_1["gr"]["n12"]))
         G1_abs = np.linalg.norm(G1)
         G2_abs = np.linalg.norm(G2)
         M1_abs = np.linalg.norm(M1)
@@ -1055,7 +1071,7 @@ class Supercell:
                 continue
             if self._on_bounary(atom, G1, G2):
                 continue
-            gr_surface.append([atom[0], atom[1], 0])
+            gr_surface.append(np.array([atom[0], atom[1]]))
         if textmode:
             print(f'{self.title_sub}{id}: Graphen: ', len(gr_surface))
 
@@ -1104,32 +1120,32 @@ class Supercell:
         max_m1 = max([0, l11, l21, l11 + l21])
         min_m2 = min([0, l12, l22, l12 + l22])
         max_m2 = max([0, l12, l22, l12 + l22])
-        l1_sub = max_m1 - min_m1
-        l2_sub = max_m2 - min_m2
-        size1 = l1_sub + 6
-        size2 = l2_sub + 6
-        cell_sub_all = self._build_substrate(size1, size2, n_sub_layers)
-        t = cell_sub_all[0][2]
-        for atom in cell_sub_all:
+        l1_me = max_m1 - min_m1
+        l2_me = max_m2 - min_m2
+        size1 = l1_me + 6
+        size2 = l2_me + 6
+        cell_me_all = self._build_substrate(size1, size2, n_sub_layers)
+        t = cell_me_all[0][2]
+        for atom in cell_me_all:
             atom[2] -= t
             atom[2] += 1
 
         Med = (size2 // 2 - 1) * size1 + size1 // 2 - 1
         trans = -M1 / 2 - M2 / 2
-        coord = [cell_sub_all[Med][0] + trans[0], cell_sub_all[Med][1] + trans[1]]
-        cell_sub_tmp = cell_sub_all[0:size1 * size2]
+        coord = [cell_me_all[Med][0] + trans[0], cell_me_all[Med][1] + trans[1]]
+        cell_me_tmp = cell_me_all[0:size1 * size2]
         eps_nach = []
         for i in range(size1 * size2):
-            a = np.array([cell_sub_tmp[i][0] - coord[0], cell_sub_tmp[i][1] - coord[1]])
+            a = np.array([cell_me_tmp[i][0] - coord[0], cell_me_tmp[i][1] - coord[1]])
             eps_nach.append(np.linalg.norm(a))
         j = np.argmin(eps_nach)
-        coord_nach = [cell_sub_tmp[j][0], cell_sub_tmp[j][1]]
-        for atom in cell_sub_all:
+        coord_nach = [cell_me_tmp[j][0], cell_me_tmp[j][1]]
+        for atom in cell_me_all:
             atom[0] -= coord_nach[0]
             atom[1] -= coord_nach[1]
 
         cell_sub = []
-        for atom in cell_sub_all:
+        for atom in cell_me_all:
             if self._atom_not_inside(atom[:-1], M1, M2):
                 continue
             if are_equal(atom[0], M1[0], 1.e-5) and are_equal(atom[1], M1[1], 1.e-5):
@@ -1144,8 +1160,8 @@ class Supercell:
 
         # Recalculate med_gr
         recalculate = False
-        beta_gr = angle_between_vectors(G1, G2)
-        beta_sub = angle_between_vectors(M1, M2)
+        beta_gr = angle_v(G1, G2)
+        beta_sub = angle_v(M1, M2)
         if not are_equal(beta_gr, beta_sub, 1.e-5):
             for atom in gr_surface:
                 atom[0] -= G1[0]
@@ -1166,7 +1182,7 @@ class Supercell:
             reflex = True
 
         # Rotate Gr to Substrate
-        alpha = angle_between_vectors(med_sub, med_gr)
+        alpha = angle_v(med_sub, med_gr)
         single = vector_triple_orientation(med_sub, med_gr)
         R = rotate_matrix(alpha)
         if single == 1:
@@ -1187,13 +1203,12 @@ class Supercell:
             if atom[2] > max1:
                 max1 = atom[2]
         for atom in gr_surface:
-            atom[2] += (max1 + self.distance)
-            supercell.append(['C', atom[0], atom[1], atom[2]])
+            supercell.append(['C', atom[0], atom[1], max1 + self.distance])
 
         cell0 = np.array([cell[0][0], cell[0][1]])
         cell1 = np.array([cell[1][0], cell[1][1]])
         zero = [1, 0]
-        angle = angle_between_vectors(cell0, zero)
+        angle = angle_v(cell0, zero)
         single = vector_triple_orientation(cell0, zero)
         R = rotate_matrix(angle)
         if single == 1:
@@ -1215,7 +1230,7 @@ class Supercell:
                 atom[1] = vector[0]
                 atom[2] = vector[1]
         else:
-            angle = angle_between_vectors(cell1, zero)
+            angle = angle_v(cell1, zero)
             single = vector_triple_orientation(cell1, zero)
             R = rotate_matrix(angle)
             if single == 1:
@@ -1244,7 +1259,7 @@ class Supercell:
 
         v1 = np.array([cell[0][0], cell[0][1]])
         v2 = np.array([cell[1][0], cell[1][1]])
-        S = np.linalg.norm(v1) * np.linalg.norm(v2) * np.sin(np.radians(angle_between_vectors(v1, v2)))
+        S = np.linalg.norm(v1) * np.linalg.norm(v2) * np.sin(np.radians(angle_v(v1, v2)))
         if textmode:
             print(f'{self.title_sub}{id}: Job done')
         try:
@@ -1266,8 +1281,7 @@ class Supercell:
                 file.write(f'{len(supercell)}' + '\n')
                 file.write('\n')
                 for atom in supercell:
-                    file.write(atom[
-                                   0] + '  ' + f'{round(atom[1], 16):3.16f}  ' + f'{round(atom[2], 16):3.16f}  ' + f'{round(atom[3], 16):3.16f}' + '\n')
+                    file.write(atom[0] + '  ' + f'{round(atom[1], 16):3.16f}  ' + f'{round(atom[2], 16):3.16f}  ' + f'{round(atom[3], 16):3.16f}' + '\n')
             with open(directory_res / f'Gr{self.title_sub}{id}_{angle_grsub:.3f}_{beta:.3f}.txt', 'w',
                       newline='') as file:
                 file.write(r'CELL_PARAMETERS {angstrom}' + '\n')
@@ -1297,6 +1311,7 @@ class Supercell:
             pbc=True
         )
         return supercell_atoms
+
 
     def build_supercells_from_csv(self, filepath, n_sub_layers: int = 3, id_start: int = 0,
                                   textmode: bool = False, supercell_save: bool = True, directory_res=Path('./'),
