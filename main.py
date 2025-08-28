@@ -1,15 +1,23 @@
-from pathlib import Path
 from supercells import Supercell
+from ase.io import write
+from IPython.display import Image, display
 
 if __name__=='__main__':
-    Gr_a_revPBE = 2.472387181
-    distance = 3.35
-    Co_a_revPBE = 2.428759230
-    Co_c_revPBE = 3.920363262
+    """
+    Usage Example
+    """
+    Pt_fcc110 = Supercell()
+    Pt_fcc110.set_sub(title_sub='Pt', lat_sub='fcc110')
+    Pt_fcc110_supercells = Pt_fcc110.search_supercell(radius=20, eps_max=6, beta_fix=False, eq_abs=False, eq_eps=4, csv=True)
 
-    GrMe = Supercell()
-    GrMe.distance = distance
-    GrMe.set_gr_a(Gr_a_revPBE)
+    atoms = Pt_fcc110.build_supercell(gs_supercell=Pt_fcc110_supercells[2], n_sub_layers=3, directory_res='./data')
+    write('data/Pt_fcc110_1.xyz', atoms)
+    write('data/Pt_fcc110_1.png', atoms)
 
-    GrMe.set_me("Co", "hcp0001", Co_a_revPBE)
-    cells = GrMe.search_supercell(radius=10, eps_max=6, id=0, beta_fix=False, beta_min=0., eq_abs=False, eq_eps=4, csv=True, textmode=True)
+    display(Image(filename='data/Pt_fcc110_1.png'))
+
+    supercell_test = Pt_fcc110_supercells[2]
+    eps_matrix = Pt_fcc110.compute_mismatch_in_basis(supercell_test)
+    print('Mismatch matrix: \n', eps_matrix)
+    eps_cc, eps_orth_cc = Pt_fcc110.compute_deform_of_cc(gs_supercell=supercell_test)
+    print(f'Deformation: {eps_cc:.4f} {eps_orth_cc:.4f}')
