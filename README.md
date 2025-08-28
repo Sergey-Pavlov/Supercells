@@ -49,10 +49,14 @@ Build the third found supercell with 3 substrate layers and save the results: st
 
 ```python
 from ase.io import write
+from IPython.display import Image, display
+
 atoms = Pt_fcc110.build_supercell(mg_supercell=Pt_fcc110_supercells[2], n_me_layers=3, directory_res='./data')
 write('./data/Pt_fcc110_1.xyz', atoms)
 write('./data/Pt_fcc110_1.png', atoms)
+display(Image(filename='data/Pt_fcc110_1.png'))
 ```
+![image](data/Pt_fcc110_1.png)
 
 ### 3. Calculating Mismatch and Deformation
 Calculate the mismatch matrix in the basis of vectors parallel and perpendicular to the C-C bond, and calculate the deformation of graphene along the C-C bond and perpendicular to it, taking into account shear deformation.
